@@ -14,7 +14,7 @@
     "vscode": "^1.90.0",
     "node": ">=20"
   },
-  "main": "./src/extension.js",
+  "main": "./dist/extension.js",
   "activationEvents": [
     "onView:forge.sidebar",
     "onCommand:forge.runPreview",
@@ -103,8 +103,9 @@
     }
   },
   "scripts": {
+    "build:extension": "node scripts/build-extension.mjs",
     "build:webview": "node scripts/build-webview.mjs",
-    "check": "node --check src/extension.js && npm run build:webview",
+    "check": "npm run build:extension && npm run build:webview",
     "package": "npx @vscode/vsce package"
   },
   "dependencies": {

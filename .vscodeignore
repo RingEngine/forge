@@ -1,7 +1,7 @@
 .vscode/
 .github/
 scripts/
-src/webview-entry.js
-src/filter-runtime.js
-src/webview-shims/
+src/
+node_modules/
+!node_modules/naga-wasi-cli/
 package-lock.json
