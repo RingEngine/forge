@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ring filter-src manifest association",
+  "description": "Applies the Ring filter-src manifest schema only when a manifest.json appears to be a Ring filter source manifest.",
+  "if": {
+    "anyOf": [
+      {
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      {
+        "required": [
+          "runtimeVersion"
+        ]
+      },
+      {
+        "required": [
+          "passes"
+        ]
+      },
+      {
+        "properties": {
+          "$schema": {
+            "type": "string",
+            "pattern": "filter-src"
+          }
+        },
+        "required": [
+          "$schema"
+        ]
+      },
+      {
+        "properties": {
+          "metadata": {
+            "properties": {
+              "kind": {
+                "const": "filter-src"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        },
+        "required": [
+          "metadata"
+        ]
+      }
+    ]
+  },
+  "then": {
+    "$ref": "./filter-src.schema.json"
+  }
+}

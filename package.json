@@ -1,0 +1,119 @@
+{
+  "name": "forge",
+  "publisher": "ring-engine-org",
+  "displayName": "Forge",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RingEngine/forge.git"
+  },
+  "description": "Workflow tools for filter-src projects.",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=20"
+  },
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onView:forge.sidebar",
+    "onCommand:forge.runPreview",
+    "onCommand:forge.exportRpf",
+    "onCommand:forge.openSettings",
+    "onCommand:forge.refreshProjects",
+    "onCommand:forge.showSidebar"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "forge",
+          "title": "Forge",
+          "icon": "resources/forge.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "forge.runPreview",
+        "title": "Forge: Run Preview"
+      },
+      {
+        "command": "forge.exportRpf",
+        "title": "Forge: Export RFP"
+      },
+      {
+        "command": "forge.openSettings",
+        "title": "Forge: Open Settings"
+      },
+      {
+        "command": "forge.showSidebar",
+        "title": "Forge: Show Filter Panel",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "forge.refreshProjects",
+        "title": "Forge: Refresh Projects"
+      }
+    ],
+    "views": {
+      "forge": [
+        {
+          "id": "forge.sidebar",
+          "name": "Forge",
+          "type": "webview"
+        }
+      ]
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "manifest.json"
+        ],
+        "url": "./schemas/filter-src-manifest-association.schema.json"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "forge.showSidebar",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "forge.refreshProjects",
+          "when": "view == forge.sidebar",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Forge",
+      "properties": {
+        "forge.defaultOutputDirectory": {
+          "type": "string",
+          "default": "dist",
+          "description": "Default directory, relative to the filter root, for exported .rfp packages."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:webview": "node scripts/build-webview.mjs",
+    "check": "node --check src/extension.js && npm run build:webview",
+    "package": "npx @vscode/vsce package"
+  },
+  "dependencies": {
+    "@ring-engine-org/filter-compiler-core": "^0.1.10",
+    "@ring-engine-org/filter-packer": "^0.1.10",
+    "fengari": "^0.1.5"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.28.0"
+  }
+}

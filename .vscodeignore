@@ -1,0 +1,7 @@
+.vscode/
+.github/
+scripts/
+src/webview-entry.js
+src/filter-runtime.js
+src/webview-shims/
+package-lock.json

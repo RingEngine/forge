@@ -1,0 +1,540 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ring.local/schemas/filter-src.schema.json",
+  "title": "filter-src manifest",
+  "description": "Schema for filter-src/manifest.json. Lua entry is fixed at main.lua in the project root.",
+  "x-description-zh-CN": "filter-src/manifest.json 的 schema。Lua 入口固定为工程根目录下的 main.lua。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtimeVersion",
+    "passes"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference for editors and validation tools. Not used for compilation or runtime execution.",
+      "x-description-zh-CN": "可选的 JSON Schema 引用，供编辑器和校验工具使用，不参与编译和运行时执行。"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "description": "Manifest schema version.",
+      "x-description-zh-CN": "manifest schema 版本。",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "runtimeVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Single integer runtime contract version.",
+      "x-description-zh-CN": "单一整数形式的 runtime contract 版本号。"
+    },
+    "outputSizeMode": {
+      "type": "string",
+      "enum": [
+        "passive",
+        "active"
+      ],
+      "default": "passive",
+      "description": "How this filter participates in output size decision.",
+      "x-description-zh-CN": "当前 filter 参与最终输出尺寸决定的模式。缺省为 passive。"
+    },
+    "runtimeHints": {
+      "$ref": "#/$defs/runtimeHints",
+      "x-description-zh-CN": "可选的宿主侧 runtime 行为提示。"
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata",
+      "x-description-zh-CN": "可选的描述性工程元信息，不属于 runtime 核心执行契约。"
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/parameter"
+      },
+      "uniqueItems": true,
+      "x-description-zh-CN": "滤镜暴露给宿主和工具的公共参数接口。"
+    },
+    "passes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/pass"
+      },
+      "x-description-zh-CN": "滤镜定义的可执行 pass 清单。"
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/asset"
+      },
+      "x-description-zh-CN": "滤镜声明的静态资源清单。"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"
+    },
+    "projectRelativePath": {
+      "type": "string",
+      "pattern": "^(?![A-Za-z]:\\\\)(?!/).+$"
+    },
+    "runtimeHints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "frameInvalidation": {
+          "type": "string",
+          "enum": [
+            "onChange",
+            "continuous"
+          ],
+          "default": "onChange",
+          "description": "Host-facing hint for whether output may change as the render timeline advances without input or parameter changes.",
+          "x-description-zh-CN": "宿主侧提示：当输入和参数没有变化时，输出是否仍可能随渲染时间线推进而变化。"
+        }
+      }
+    },
+    "shaderPath": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/projectRelativePath"
+        },
+        {
+          "pattern": ".+\\.(vert|frag|comp)\\.glsl$"
+        }
+      ],
+      "description": "Project-relative shader path. Absolute paths are not allowed.",
+      "x-description-zh-CN": "shader 的工程相对路径，不允许绝对路径。"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-description-zh-CN": "描述性工程元信息集合。",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "filter-src",
+          "x-description-zh-CN": "工程种类标识。当前固定为 filter-src。"
+        },
+        "id": {
+          "type": "string",
+          "description": "Stable filter source project id.",
+          "x-description-zh-CN": "稳定的 filter-src 工程标识。",
+          "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "x-description-zh-CN": "给人类阅读的工程名称。"
+        },
+        "version": {
+          "type": "string",
+          "description": "Source project version.",
+          "x-description-zh-CN": "源码工程自身的版本号。",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([.-][A-Za-z0-9]+)*$"
+        },
+        "description": {
+          "type": "string",
+          "x-description-zh-CN": "对工程的简短描述。"
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "x-description-zh-CN": "作者或团队名称列表。"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "uniqueItems": true,
+          "x-description-zh-CN": "用于检索或分类的标签列表。"
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-description-zh-CN": "单个公共参数定义。",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "x-description-zh-CN": "参数逻辑 id。"
+        },
+        "label": {
+          "type": "string",
+          "description": "Editor-facing display label. Not used for compilation or runtime execution.",
+          "x-description-zh-CN": "面向编辑器和作者工具的显示标签，不参与编译和运行时执行。"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "bool",
+            "float",
+            "vec4",
+            "mat4"
+          ],
+          "x-description-zh-CN": "参数基础类型。"
+        },
+        "semantic": {
+          "type": "string",
+          "enum": [
+            "color3",
+            "color4",
+            "ndcPoint2",
+            "ndcRect"
+          ],
+          "description": "Additional semantic convention for selected parameter types. For ndcPoint2 and ndcRect, Ring NDC uses x to the right and y downward; [-1, -1] is the upper-left corner.",
+          "x-description-zh-CN": "仅对特定类型生效的附加语义约定。当前用于 vec4。"
+        },
+        "default": {
+          "description": "Default parameter value.",
+          "x-description-zh-CN": "参数默认值。"
+        },
+        "min": {
+          "type": "number",
+          "x-description-zh-CN": "数值下界。当前仅对 float 有意义。"
+        },
+        "max": {
+          "type": "number",
+          "x-description-zh-CN": "数值上界。当前仅对 float 有意义。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "bool"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "min"
+                  ]
+                },
+                {
+                  "required": [
+                    "max"
+                  ]
+                },
+                {
+                  "required": [
+                    "semantic"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "default": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "semantic"
+            ],
+            "properties": {
+              "type": {
+                "const": "vec4"
+              },
+              "semantic": {
+                "const": "ndcRect"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "array",
+                "description": "`ndcRect` default as [x, y, w, h]. x and y are the upper-left corner in Ring NDC; w grows right and h grows downward.",
+                "x-description-zh-CN": "`ndcRect` 默认值，格式为 [x, y, w, h]。x 和 y 是 Ring NDC 中的左上角；w 向右增长，h 向下增长。",
+                "minItems": 4,
+                "maxItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "description": "Upper-left x in Ring NDC.",
+                    "x-description-zh-CN": "Ring NDC 中左上角的 x。"
+                  },
+                  {
+                    "type": "number",
+                    "description": "Upper-left y in Ring NDC.",
+                    "x-description-zh-CN": "Ring NDC 中左上角的 y。"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Width in Ring NDC, growing toward positive x.",
+                    "x-description-zh-CN": "Ring NDC 中的宽度，向 x 正方向增长。"
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Height in Ring NDC, growing downward toward positive y.",
+                    "x-description-zh-CN": "Ring NDC 中的高度，向下方的 y 正方向增长。"
+                  }
+                ],
+                "items": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "float"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "semantic"
+              ]
+            },
+            "properties": {
+              "default": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "vec4"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "min"
+                  ]
+                },
+                {
+                  "required": [
+                    "max"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "default": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "semantic"
+            ],
+            "properties": {
+              "type": {
+                "const": "vec4"
+              },
+              "semantic": {
+                "const": "ndcPoint2"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "minimum": -1,
+                    "maximum": 1
+                  },
+                  {
+                    "type": "number",
+                    "minimum": -1,
+                    "maximum": 1
+                  },
+                  {
+                    "const": 0
+                  },
+                  {
+                    "const": 1
+                  }
+                ],
+                "items": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mat4"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "min"
+                  ]
+                },
+                {
+                  "required": [
+                    "max"
+                  ]
+                },
+                {
+                  "required": [
+                    "semantic"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "default": {
+                "type": "array",
+                "minItems": 16,
+                "maxItems": 16,
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "pass": {
+      "type": "object",
+      "x-description-zh-CN": "单个 pass 定义，可以是 render pass 或 compute pass。",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/renderPass"
+        },
+        {
+          "$ref": "#/$defs/computePass"
+        }
+      ]
+    },
+    "renderPass": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-description-zh-CN": "render pass 定义。",
+      "required": [
+        "id",
+        "type",
+        "vertexShader",
+        "fragmentShader"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "x-description-zh-CN": "pass 的逻辑 id。"
+        },
+        "type": {
+          "type": "string",
+          "const": "render",
+          "x-description-zh-CN": "pass 类型，固定为 render。"
+        },
+        "vertexShader": {
+          "$ref": "#/$defs/shaderPath",
+          "x-description-zh-CN": "vertex shader 的工程相对路径。"
+        },
+        "fragmentShader": {
+          "$ref": "#/$defs/shaderPath",
+          "x-description-zh-CN": "fragment shader 的工程相对路径。"
+        }
+      }
+    },
+    "computePass": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-description-zh-CN": "compute pass 定义。",
+      "required": [
+        "id",
+        "type",
+        "computeShader"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "x-description-zh-CN": "pass 的逻辑 id。"
+        },
+        "type": {
+          "type": "string",
+          "const": "compute",
+          "x-description-zh-CN": "pass 类型，固定为 compute。"
+        },
+        "computeShader": {
+          "$ref": "#/$defs/shaderPath",
+          "x-description-zh-CN": "compute shader 的工程相对路径。"
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-description-zh-CN": "单个静态资源定义。",
+      "required": [
+        "id",
+        "path",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "x-description-zh-CN": "资源逻辑 id。Lua 应通过它引用资源。"
+        },
+        "path": {
+          "$ref": "#/$defs/projectRelativePath",
+          "description": "Project-relative asset path. Absolute paths are not allowed.",
+          "x-description-zh-CN": "资源文件的工程相对路径，不允许绝对路径。"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "image",
+            "video"
+          ],
+          "x-description-zh-CN": "资源载体类型。当前支持 image 和 video。"
+        }
+      }
+    }
+  }
+}
