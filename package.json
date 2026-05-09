@@ -7,7 +7,7 @@
     "url": "https://github.com/RingEngine/forge.git"
   },
   "description": "Workflow tools for filter-src projects.",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "type": "module",
   "private": true,
   "engines": {
@@ -103,14 +103,15 @@
     }
   },
   "scripts": {
+    "fetch:schemas": "node scripts/fetch-schemas.mjs",
     "build:extension": "node scripts/build-extension.mjs",
     "build:webview": "node scripts/build-webview.mjs",
-    "check": "npm run build:extension && npm run build:webview",
+    "check": "npm run fetch:schemas && npm run build:extension && npm run build:webview",
     "package": "npx @vscode/vsce package"
   },
   "dependencies": {
-    "@ring-engine-org/filter-compiler-core": "^0.1.10",
-    "@ring-engine-org/filter-packer": "^0.1.10",
+    "@ring-engine-org/filter-compiler-core": "^0.1.12",
+    "@ring-engine-org/filter-packer": "^0.1.12",
     "fengari": "^0.1.5"
   },
   "devDependencies": {

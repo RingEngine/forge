@@ -33,6 +33,9 @@ jobs:
       - name: Build and validate
         run: npm run check
 
+      - name: Set version from tag
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+
       - name: Package VSIX
         run: npx @vscode/vsce package
 

@@ -9553,9 +9553,12 @@ import crypto from "node:crypto";
 import path2 from "node:path";
 import * as vscode from "vscode";
 
+// node_modules/@ring-engine-org/filter-compiler-core/src/compiler-config.js
+var COMPILER_RUNTIME_VERSION = 1;
+
 // node_modules/@ring-engine-org/filter-compiler-core/src/schema-urls.js
-var DOCS_TAG = "runtime-1";
-var DOCS_RAW_BASE_URL = `https://raw.githubusercontent.com/RingEngine/Docs/${DOCS_TAG}`;
+var DOCS_TAG = `runtime-${COMPILER_RUNTIME_VERSION}`;
+var DOCS_RAW_BASE_URL = `https://raw.githubusercontent.com/RingEngine/docs/${DOCS_TAG}`;
 var FILTER_SRC_SCHEMA_URL = `${DOCS_RAW_BASE_URL}/schemas/filter-src.schema.json`;
 var FILTER_SCHEMA_URL = `${DOCS_RAW_BASE_URL}/schemas/filter.schema.json`;
 
@@ -10956,9 +10959,6 @@ function buildCompiledManifestSchemaErrorMessage(error) {
   const instancePath = error.instancePath || "/";
   return `compiled manifest schema validation failed at ${instancePath}: ${error.message}`;
 }
-
-// node_modules/@ring-engine-org/filter-compiler-core/src/compiler-config.js
-var COMPILER_RUNTIME_VERSION = 1;
 
 // node_modules/antlr4/dist/antlr4.node.mjs
 import { createRequire as t } from "node:module";
