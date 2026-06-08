@@ -16194,6 +16194,7 @@ var LUA_CTX_METHODS = [
 ];
 var PREVIEW_INPUT_CACHE = /* @__PURE__ */ new WeakMap();
 var PREVIEW_VIDEO_FRAME_CACHE = /* @__PURE__ */ new WeakMap();
+var PREVIEW_RUNTIME_ASSET_CACHE = /* @__PURE__ */ new WeakMap();
 var ENABLE_RUNTIME_TRACE = false;
 var ENABLE_WEBGPU_ERROR_SCOPES = true;
 async function renderFilterPreview({
@@ -16226,6 +16227,11 @@ async function renderFilterPreview({
     "loadPreviewInput",
     () => loadPreviewInput(previewInputFile2, canvas2, previewInputVideoElement, previewInputVideoFrameMode, profile)
   );
+  const runtimeAssets = await timeAsyncSection(
+    profile,
+    "loadRuntimeAssets",
+    () => loadRuntimeAssets(compiledManifest, compiledFiles2, profile)
+  );
   const previewOutputSize2 = resolvePreviewOutputSizeOverride(
     inputImage,
     compiledManifest,
@@ -16239,6 +16245,7 @@ async function renderFilterPreview({
     workspace,
     canvas: canvas2,
     inputImage,
+    runtimeAssets,
     previewOutputSize: previewOutputSize2,
     renderTimeline: renderTimeline2,
     parameterValues: parameterValues2,
@@ -16273,6 +16280,102 @@ function resolvePreviewOutputSizeOverride(inputImage, compiledManifest, previewO
     height: Math.max(1, Math.floor(height + 1e-6))
   };
 }
+async function loadRuntimeAssets(compiledManifest, compiledFiles2, profile = null) {
+  const assets = /* @__PURE__ */ new Map();
+  const cache = getRuntimeAssetCache(compiledFiles2);
+  for (const asset of compiledManifest?.assets ?? []) {
+    if (!asset?.id) continue;
+    const bytes = getVirtualFileBytes(compiledFiles2, asset.path);
+    if (!bytes) {
+      throw new Error(`Missing ${asset.type || "runtime"} asset "${asset.id}" at "${asset.path}".`);
+    }
+    const cacheKey = `${asset.type}:${asset.id}:${asset.path}`;
+    if (cache?.has(cacheKey)) {
+      assets.set(asset.id, cache.get(cacheKey));
+      continue;
+    }
+    if (asset.type === "image") {
+      const surface = await timeAsyncSection(
+        profile,
+        `asset:${asset.id}:image`,
+        () => imageSurfaceFromBytes(bytes, asset.path)
+      );
+      cache?.set(cacheKey, surface);
+      assets.set(asset.id, surface);
+      continue;
+    }
+    if (asset.type === "video") {
+      const surface = await timeAsyncSection(
+        profile,
+        `asset:${asset.id}:video`,
+        () => videoAssetSurfaceFromBytes(bytes, asset.path)
+      );
+      cache?.set(cacheKey, surface);
+      assets.set(asset.id, surface);
+    }
+  }
+  return assets;
+}
+function getRuntimeAssetCache(compiledFiles2) {
+  if (!compiledFiles2 || typeof compiledFiles2 !== "object") return null;
+  let cache = PREVIEW_RUNTIME_ASSET_CACHE.get(compiledFiles2);
+  if (!cache) {
+    cache = /* @__PURE__ */ new Map();
+    PREVIEW_RUNTIME_ASSET_CACHE.set(compiledFiles2, cache);
+  }
+  return cache;
+}
+function getVirtualFileBytes(files, filePath) {
+  const normalizedPath = normalizeShaderPath(filePath);
+  const value = files?.[normalizedPath] ?? files?.[filePath];
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
+  return null;
+}
+async function imageSurfaceFromBytes(bytes, sourcePath) {
+  const blob = new Blob([bytes], { type: inferImageMimeType(sourcePath) });
+  return await imageSurfaceFromBlob(blob, sourcePath);
+}
+async function videoAssetSurfaceFromBytes(bytes, sourcePath) {
+  const blob = new Blob([bytes], { type: inferVideoMimeType(sourcePath) });
+  const objectUrl = URL.createObjectURL(blob);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.loop = true;
+  video.autoplay = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = objectUrl;
+  await waitForVideoReady(video, sourcePath);
+  await video.play().catch(() => {
+  });
+  const width = video.videoWidth || 1;
+  const height = video.videoHeight || 1;
+  const canvas2 = document.createElement("canvas");
+  canvas2.width = width;
+  canvas2.height = height;
+  const context = canvas2.getContext("2d", { willReadFrequently: true });
+  const surface = new VideoAssetSurface(video, canvas2, context, sourcePath, objectUrl);
+  surface.nextFrame();
+  return surface;
+}
+function inferImageMimeType(sourcePath) {
+  const path = String(sourcePath ?? "").toLowerCase();
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  if (path.endsWith(".webp")) return "image/webp";
+  if (path.endsWith(".gif")) return "image/gif";
+  if (path.endsWith(".bmp")) return "image/bmp";
+  return "image/png";
+}
+function inferVideoMimeType(sourcePath) {
+  const path = String(sourcePath ?? "").toLowerCase();
+  if (path.endsWith(".webm")) return "video/webm";
+  if (path.endsWith(".mov")) return "video/quicktime";
+  return "video/mp4";
+}
 function normalizeRenderTimeline(timeline) {
   return {
     frameIndex: Math.max(0, Math.floor(Number(timeline?.frameIndex) || 0)),
@@ -16281,7 +16384,7 @@ function normalizeRenderTimeline(timeline) {
   };
 }
 var BrowserFilterRuntime = class {
-  constructor({ compiledManifest, sourceManifest, compiledFiles: compiledFiles2, sourceFiles: sourceFiles2, workspace, canvas: canvas2, inputImage, previewOutputSize: previewOutputSize2, renderTimeline: renderTimeline2, parameterValues: parameterValues2, profile }) {
+  constructor({ compiledManifest, sourceManifest, compiledFiles: compiledFiles2, sourceFiles: sourceFiles2, workspace, canvas: canvas2, inputImage, runtimeAssets, previewOutputSize: previewOutputSize2, renderTimeline: renderTimeline2, parameterValues: parameterValues2, profile }) {
     this.compiledManifest = compiledManifest;
     this.sourceManifest = sourceManifest ?? { parameters: [], passes: [], assets: [] };
     this.compiledFiles = compiledFiles2 ?? {};
@@ -16296,7 +16399,7 @@ var BrowserFilterRuntime = class {
     );
     this.targets = /* @__PURE__ */ new Map();
     this.buffers = /* @__PURE__ */ new Map();
-    this.assets = /* @__PURE__ */ new Map();
+    this.assets = runtimeAssets ?? /* @__PURE__ */ new Map();
     this.runtimeObjects = /* @__PURE__ */ new Map();
     this.nextObjectId = 1;
     this.profile = profile;
@@ -16565,6 +16668,9 @@ var BrowserFilterRuntime = class {
   async getGpuRuntime() {
     if (!this.gpuRuntime) {
       this.gpuRuntime = await getPreviewWebGpuRuntime(this.canvas, this.output.width, this.output.height, this.profile);
+      if (!this.gpuRuntime) {
+        throw new Error("WebGPU preview runtime unavailable. Relaunch VS Code with WebGPU enabled, then run Forge preview again.");
+      }
     }
     return this.gpuRuntime;
   }
@@ -16618,6 +16724,20 @@ var BrowserFilterRuntime = class {
         return 1;
       });
       lua.lua_setfield(L, -2, (0, import_defs.to_luastring)("getHeight"));
+    }
+    if (typeof object.seek === "function") {
+      lua.lua_pushjsfunction(L, (state) => {
+        object.seek(lua.lua_tointeger(state, 2));
+        return 0;
+      });
+      lua.lua_setfield(L, -2, (0, import_defs.to_luastring)("seek"));
+    }
+    if (typeof object.nextFrame === "function") {
+      lua.lua_pushjsfunction(L, () => {
+        object.nextFrame();
+        return 0;
+      });
+      lua.lua_setfield(L, -2, (0, import_defs.to_luastring)("nextFrame"));
     }
   }
   getOrCreateRuntimeObjectId(object) {
@@ -16745,6 +16865,46 @@ var ImageSurface = class {
     if (!this.externalTextureSource) {
       this.pixels = new Uint8ClampedArray(width * height * 4);
     }
+  }
+};
+var VideoAssetSurface = class extends ImageSurface {
+  constructor(video, canvas2, context, sourcePath, objectUrl) {
+    super(canvas2.width || 1, canvas2.height || 1, null, sourcePath, {
+      externalTextureSource: canvas2,
+      textureFlipY: false
+    });
+    this.video = video;
+    this.canvas = canvas2;
+    this.context = context;
+    this.objectUrl = objectUrl;
+    this.frameIndex = 0;
+    this.frameStepSeconds = 1 / 30;
+  }
+  seek(frameIndex) {
+    this.frameIndex = Math.max(0, Math.floor(Number(frameIndex) || 0));
+    this.seekVideoTime();
+    this.drawCurrentFrame();
+  }
+  nextFrame() {
+    if (this.video.paused) {
+      this.seekVideoTime();
+    }
+    this.drawCurrentFrame();
+    this.frameIndex += 1;
+  }
+  seekVideoTime() {
+    const duration = Number(this.video.duration);
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    this.video.currentTime = this.frameIndex * this.frameStepSeconds % duration;
+  }
+  drawCurrentFrame() {
+    const width = this.video.videoWidth || this.width || 1;
+    const height = this.video.videoHeight || this.height || 1;
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+    this.width = width;
+    this.height = height;
+    this.context.drawImage(this.video, 0, 0, width, height);
   }
 };
 var OutputImage = class extends ImageSurface {
@@ -16946,7 +17106,7 @@ var PREVIEW_WEBGPU_RUNTIMES = /* @__PURE__ */ new WeakMap();
 async function getPreviewWebGpuRuntime(canvas2, width, height, profile) {
   if (typeof navigator === "undefined" || !navigator.gpu) {
     addDiagnostic(profile, "info", "WebGPU preview unavailable.");
-    return null;
+    throw new Error("WebGPU preview unavailable. Relaunch VS Code with WebGPU enabled, then run Forge preview again.");
   }
   try {
     let runtime = PREVIEW_WEBGPU_RUNTIMES.get(canvas2);
@@ -16961,16 +17121,20 @@ async function getPreviewWebGpuRuntime(canvas2, width, height, profile) {
       error: error.message || String(error)
     });
     console.warn("WebGPU preview failed to initialize:", error);
-    return null;
+    throw error;
   }
 }
 var PreviewWebGpuRuntime = class _PreviewWebGpuRuntime {
   static async create(canvas2) {
     const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) return null;
+    if (!adapter) {
+      throw new Error("WebGPU adapter unavailable.");
+    }
     const device = await adapter.requestDevice();
     const context = canvas2.getContext("webgpu");
-    if (!context) return null;
+    if (!context) {
+      throw new Error("WebGPU canvas context unavailable.");
+    }
     const format = navigator.gpu.getPreferredCanvasFormat();
     return new _PreviewWebGpuRuntime(canvas2, device, context, format);
   }
@@ -17332,17 +17496,18 @@ var PreviewWebGpuRuntime = class _PreviewWebGpuRuntime {
     }
     if (cached?.buffer) cached.buffer.destroy();
     if (cached?.texture) cached.texture.destroy();
+    const textureUsage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT;
     const texture = timeSection(profile, `${label}:createTexture`, () => this.device.createTexture({
       size: { width: resource.width, height: resource.height },
       format: "rgba8unorm",
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
+      usage: textureUsage
     }));
     uploadGpuTextureResource(this.device, texture, resource, profile, label);
     this.resourceCache.set(resource, {
       texture,
       width: resource.width,
       height: resource.height,
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+      usage: textureUsage,
       rendered: false,
       dirty: false
     });

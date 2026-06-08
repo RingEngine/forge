@@ -106,7 +106,8 @@
     "fetch:schemas": "node scripts/fetch-schemas.mjs",
     "build:extension": "node scripts/build-extension.mjs",
     "build:webview": "node scripts/build-webview.mjs",
-    "check": "npm run fetch:schemas && npm run build:extension && npm run build:webview",
+    "test": "node --no-warnings --test test/*.test.js",
+    "check": "npm test && npm run fetch:schemas && npm run build:extension && npm run build:webview",
     "package": "npx @vscode/vsce package"
   },
   "dependencies": {
